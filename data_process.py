@@ -195,7 +195,10 @@ def preprocess_and_scale(datasets, test_scale, timesteps, scale_min=0, scale_max
         training_set[0] = np.swapaxes(training_set[0], 0, 2)
         training_set[0] = np.swapaxes(training_set[0], 0, 1)
         training_sets.append(training_set)
-        test_sets.append(to_x_and_y(test_set))
+        test_set = to_x_and_y(test_set)
+        test_set[0] = np.swapaxes(test_set[0], 0, 2)
+        test_set[0] = np.swapaxes(test_set[0], 0, 1)
+        test_sets.append(test_set)
         
     print('dataset scaling complete')
     return training_sets, test_sets, scaler
