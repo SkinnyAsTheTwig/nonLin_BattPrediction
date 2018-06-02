@@ -105,15 +105,20 @@ def preprocess_and_scale(datasets, test_scale, timesteps, scale_min=0, scale_max
         return final_set
     
     def to_x_and_y(dset):
+        if type(dset) == list:
+            return False
         x_tr_set = []
         y_tr_set = [dset[i][-1] for i in range(timesteps, dset.shape[0])]
         
-        for x in range(dset.shape[1]-1): #dont want y data
+        for x in range(dset.shape[1]):
             x_tr = []
             for i in range(timesteps, dset.shape[0]):
-                x_tr.append(dset[i-timesteps:i, 0][x])
+                x_tr.append(dset[i-timesteps:i, 0])
             x_tr_set.append(x_tr)
         x_tr_set = np.array(x_tr_set)
+        if x_tr_set.shape[1] < 3:
+            return False
+        print(x_tr_set.shape)
         y_tr_set = np.array(y_tr_set)
 
         return [x_tr_set, y_tr_set]
@@ -184,9 +189,14 @@ def preprocess_and_scale(datasets, test_scale, timesteps, scale_min=0, scale_max
         np.delete(training_set, list(range(0, size, 10)), axis=0)
         tmp = np.reshape(df.iloc[::10, :]['target_soc'].values, (df.iloc[::10, :].shape[0], 1), order='A')
         np.append(test_set, tmp, 1)
-        
-        training_sets.append(to_x_and_y(training_set))
+       
+        training_set = to_x_and_y(training_set)
+        if not training_set: continue
+        training_set[0] = np.swapaxes(training_set[0], 0, 2)
+        training_set[0] = np.swapaxes(training_set[0], 0, 1)
+        training_sets.append(training_set)
         test_sets.append(to_x_and_y(test_set))
+        
     print('dataset scaling complete')
     return training_sets, test_sets, scaler
 
