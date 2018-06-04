@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 
-def preprocess_and_scale(datasets, test_scale, timesteps, scale_min=0, scale_max=1):
+def prepare(datasets, test_scale, timesteps, scale_min=0, scale_max=1):
     """
     :returns: list(training_sets), list(test_sets), scaler
     """
@@ -110,7 +110,7 @@ def preprocess_and_scale(datasets, test_scale, timesteps, scale_min=0, scale_max
         x_tr_set = []
         y_tr_set = [dset[i][-1] for i in range(timesteps, dset.shape[0])]
         
-        for x in range(dset.shape[1]):
+        for x in range(dset.shape[1]-1):
             x_tr = []
             for i in range(timesteps, dset.shape[0]):
                 x_tr.append(dset[i-timesteps:i, 0])
@@ -118,7 +118,6 @@ def preprocess_and_scale(datasets, test_scale, timesteps, scale_min=0, scale_max
         x_tr_set = np.array(x_tr_set)
         if x_tr_set.shape[1] < 3:
             return False
-        print(x_tr_set.shape)
         y_tr_set = np.array(y_tr_set)
 
         return [x_tr_set, y_tr_set]
@@ -177,30 +176,32 @@ def preprocess_and_scale(datasets, test_scale, timesteps, scale_min=0, scale_max
         #training_set = df.values
         #training_set = astype('float32')
         # prepare the scaler against all data
-        scaler.fit(df.drop('target_soc', axis=1).values)
+        scaler.fit(df.values)
         
     for df in dataframes:
         size = df.shape[0]
-        test_set = df.drop('target_soc', axis=1).iloc[::10, :]
-        test_set = scaler.transform(test_set.values)
-        training_set = scaler.transform(df.drop('target_soc', axis=1).values)
-        tmp = np.reshape(df['target_soc'].values, (df['target_soc'].shape[0], 1), order='A')
-        np.append(training_set, tmp, 1)
+        test_set = scaler.transform(df.iloc[::10, :].values)
+        training_set = scaler.transform(df.values)
         np.delete(training_set, list(range(0, size, 10)), axis=0)
-        tmp = np.reshape(df.iloc[::10, :]['target_soc'].values, (df.iloc[::10, :].shape[0], 1), order='A')
-        np.append(test_set, tmp, 1)
        
         training_set = to_x_and_y(training_set)
         if not training_set: continue
         training_set[0] = np.swapaxes(training_set[0], 0, 2)
         training_set[0] = np.swapaxes(training_set[0], 0, 1)
-        training_sets.append(training_set)
         test_set = to_x_and_y(test_set)
         if not test_set: continue
         test_set[0] = np.swapaxes(test_set[0], 0, 2)
         test_set[0] = np.swapaxes(test_set[0], 0, 1)
-        test_sets.append(test_set)
         
+        training_sets.append(training_set)
+        test_sets.append(test_set)
+
     print('dataset scaling complete')
-    return training_sets, test_sets, scaler
+        
+    X_train = np.concatenate([i[0] for i in training_sets],axis=0)
+    Y_train = np.concatenate([i[1] for i in training_sets],axis=0)
+    X_test = np.concatenate([i[0] for i in test_sets],axis=0)
+    Y_test = np.concatenate([i[1] for i in test_sets],axis=0)
+  
+    return X_train, Y_train, X_test, Y_test, scaler
 
