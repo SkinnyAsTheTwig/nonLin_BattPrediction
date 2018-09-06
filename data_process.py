@@ -36,6 +36,8 @@ def prepare(datasets, test_scale, timesteps, scale_min=0, scale_max=1):
                 dset.drop(name, axis=1, inplace=True)
             except ValueError:
                 continue
+            except KeyError:
+                continue
         dset.replace(13371337, np.NaN, inplace=True)
         dset.fillna(method='ffill', inplace=True)
         dset.fillna(method='bfill', inplace=True)
@@ -104,27 +106,28 @@ def prepare(datasets, test_scale, timesteps, scale_min=0, scale_max=1):
         final_set['target_soc'] = [dataset['abssoc'][num_rows - 1] for i in range(num_rows)]
         return final_set
     
-    def to_x_and_y(dset):
-        if type(dset) == list:
-            return False
-        x_tr_set = []
-        y_tr_set = [dset[i][-1] for i in range(timesteps, dset.shape[0])]
-        
-        for x in range(dset.shape[1]-1):
-            x_tr = []
-            for i in range(timesteps, dset.shape[0]):
-                x_tr.append(dset[i-timesteps:i, 0])
-            x_tr_set.append(x_tr)
-        x_tr_set = np.array(x_tr_set)
-        if x_tr_set.shape[1] < 3:
-            return False
-        y_tr_set = np.array(y_tr_set)
-
-        return [x_tr_set, y_tr_set]
+    def to_x_and_y(arr):
+        X = []
+        for i in range(timesteps, arr.shape[0]):
+            mid = []
+            # for x in range(len(arr[i])-1):
+            #     mid.append([element for element in arr[i-timesteps:i, x]])
+            # X.append(mid)
+            for x in range(timesteps):
+                mid.append([element for element in arr[i-x, :-1]])
+            X.append(mid)
+            # mid = []
+            # for element in arr[i-timesteps:i]:
+            #     for x in element:
+        #print(X[0])
+        X = np.array(X)
+        print(X.shape)
+        Y = np.copy([arr[i][-1] for i in range(timesteps, arr.shape[0])])
+        return [X, Y]
         
 
     dataframes = []
-    if type(datasets) == str:
+    if type(datasets) is not list:
         datasets = [datasets]
 
     max_values = {'coulombs_consumed':0,
@@ -182,26 +185,33 @@ def prepare(datasets, test_scale, timesteps, scale_min=0, scale_max=1):
         size = df.shape[0]
         test_set = scaler.transform(df.iloc[::10, :].values)
         training_set = scaler.transform(df.values)
-        np.delete(training_set, list(range(0, size, 10)), axis=0)
-       
+        training_set = np.delete(training_set, list(range(0, size, 10)), axis=0)
+
         training_set = to_x_and_y(training_set)
         if not training_set: continue
-        training_set[0] = np.swapaxes(training_set[0], 0, 2)
-        training_set[0] = np.swapaxes(training_set[0], 0, 1)
+
         test_set = to_x_and_y(test_set)
         if not test_set: continue
-        test_set[0] = np.swapaxes(test_set[0], 0, 2)
-        test_set[0] = np.swapaxes(test_set[0], 0, 1)
         
         training_sets.append(training_set)
         test_sets.append(test_set)
 
+    def clear_list(arr_list):
+        for idx, slist in enumerate(arr_list):
+            for i in slist:
+                if not i.any():
+                    arr_list.pop(idx)
+                    break
+        return arr_list
+    
+    test_sets = clear_list(test_sets)
     print('dataset scaling complete')
-        
     X_train = np.concatenate([i[0] for i in training_sets],axis=0)
     Y_train = np.concatenate([i[1] for i in training_sets],axis=0)
     X_test = np.concatenate([i[0] for i in test_sets],axis=0)
     Y_test = np.concatenate([i[1] for i in test_sets],axis=0)
-  
-    return X_train, Y_train, X_test, Y_test, scaler
 
+    return np.squeeze(X_train), Y_train, X_test, Y_test, scaler
+    #return X_train, Y_train, training_sets, Y_test, scaler
+
+    # rows, columns, pages

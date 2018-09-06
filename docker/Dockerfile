@@ -15,7 +15,8 @@ RUN conda install -y -c conda-forge \
         jupyter_contrib_nbextensions \
         pyopengl \
         keras 
-RUN pip install "gym[atari,box2d,classic_control]"
+RUN pip install "gym[atari,box2d,classic_control]" && \
+    pip install jupyterthemes
 
 ARG username
 ARG userid
